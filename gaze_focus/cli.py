@@ -24,9 +24,13 @@ def main():
 
     r = sub.add_parser("run", help="track gaze and switch window focus (double-blink by default)")
     add_cameras(r)
-    r.add_argument("--trigger", choices=["blink", "dwell"], default="blink",
-                   help="blink: double-blink at a window to focus it (default); "
-                        "dwell: auto-focus after the gaze rests on a window")
+    r.add_argument("--trigger", choices=["dwell", "blink"], default="dwell",
+                   help="dwell: auto-focus after the gaze rests on a window (default); "
+                        "blink: double-blink at a window to focus it")
+    r.add_argument("--no-clicks", action="store_true",
+                   help="disable face-gesture clicks (brow-raise = left, mouth-open = right)")
+    r.add_argument("--click-key", default="F8", metavar="KEY",
+                   help="global hotkey that left-clicks at the gaze point (default F8; 'none' disables)")
     r.add_argument("--dwell", type=float, default=0.4, help="[dwell] seconds gaze must rest on a window (default 0.4)")
     r.add_argument("--idle", type=float, default=0.6, help="[dwell] seconds since last keypress before switching (default 0.6)")
     r.add_argument("--cooldown", type=float, default=None, help="min seconds between switches (default 0.5 blink / 1.2 dwell)")
@@ -56,6 +60,7 @@ def main():
         from .run import run
         run(cameras=args.cameras, trigger=args.trigger, dwell=args.dwell,
             idle=args.idle, cooldown=args.cooldown, smooth=args.smooth,
+            clicks=not args.no_clicks, click_key=args.click_key,
             dry_run=args.dry_run, verbose=args.verbose, overlay=args.overlay)
     elif args.cmd == "preview":
         from .preview import preview

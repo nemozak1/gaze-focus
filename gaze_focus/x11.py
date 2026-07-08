@@ -3,8 +3,9 @@ import re
 import subprocess
 from dataclasses import dataclass
 
-from Xlib import X, display, protocol
+from Xlib import X, XK, display, protocol
 from Xlib.error import XError
+from Xlib.ext import xtest
 
 SKIP_WINDOW_TYPES = ("DOCK", "DESKTOP", "NOTIFICATION", "TOOLTIP", "MENU",
                      "DROPDOWN_MENU", "POPUP_MENU", "SPLASH", "COMBO")
@@ -138,3 +139,31 @@ class X11:
 
     def any_key_down(self):
         return any(self.d.query_keymap())
+
+    def click(self, x, y, button=1):
+        """Warp the pointer to (x, y) and click there via XTest."""
+        self.root.warp_pointer(int(x), int(y))
+        self.d.sync()
+        xtest.fake_input(self.d, X.ButtonPress, button)
+        xtest.fake_input(self.d, X.ButtonRelease, button)
+        self.d.flush()
+
+    def grab_key(self, key_name):
+        """Grab a key globally (all modifier-lock variants). Returns keycode."""
+        keysym = XK.string_to_keysym(key_name)
+        if keysym == 0:
+            raise SystemExit(f"unknown key name: {key_name}")
+        keycode = self.d.keysym_to_keycode(keysym)
+        for mods in (0, X.Mod2Mask, X.LockMask, X.Mod2Mask | X.LockMask):
+            self.root.grab_key(keycode, mods, True, X.GrabModeAsync, X.GrabModeAsync)
+        self.d.flush()
+        return keycode
+
+    def grabbed_key_presses(self):
+        """Keycodes of grabbed keys pressed since the last call (non-blocking)."""
+        codes = []
+        while self.d.pending_events():
+            ev = self.d.next_event()
+            if ev.type == X.KeyPress:
+                codes.append(ev.detail)
+        return codes

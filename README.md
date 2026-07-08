@@ -55,18 +55,31 @@ coordinates would poison the fit); recalibrate fresh in that case.
 
 ## Triggers and tuning (`run` flags)
 
-Default trigger is **double-blink**: look at a window and blink twice
-quickly (both eyes — winks don't count) to focus it. Nothing happens on
-normal blinking: a "double" needs the second blink to complete within 0.9s
-of the first, and closures longer than 0.5s (squints, eye rubs) reset the
-gesture. The gaze point freezes while your eyes are closed, so the switch
-targets what you were looking at just before the blink. Practice in
-`preview` — it shows the live blink score and flashes when a double-blink
-registers.
+Default trigger is **dwell**: focus follows your gaze automatically once it
+rests on a window. Tuned by `--dwell 0.4` (gaze rest time) and `--idle 0.6`
+(seconds since your last keypress — this is what stops mid-typing yanks;
+focus moves in the pause after you stop typing).
 
-- `--trigger dwell` — old behavior: auto-focus after your gaze rests on a
-  window, no gesture needed. Tuned by `--dwell 0.4` (gaze rest time) and
-  `--idle 0.6` (seconds since last keypress; stops mid-typing yanks).
+- `--trigger blink` — gesture mode instead: look at a window and blink
+  twice quickly (both eyes — winks don't count) to focus it. The gaze
+  point freezes while your eyes are closed, so the switch targets what
+  you were looking at just before the blink.
+
+## Clicking
+
+Three ways to click at the gaze point, all active by default during `run`:
+
+- **Raise your eyebrows** (hold ~150ms, release) — left click
+- **Open your mouth** (hold ~150ms, release) — right click
+- **Press F8** — left click (`--click-key KEY` to rebind, `none` to disable)
+
+Face gestures use adaptive baselines (like blink detection) with a
+hold-then-release requirement and a cooldown, so ordinary expressions
+don't fire them. `--no-clicks` disables the face gestures. Honest
+accuracy note: clicks land wherever the gaze estimate is, which is good
+to roughly the error margin (~250px) — great for big buttons, videos,
+window chrome; not for small links. The pointer warps to the click
+point, so you always see where it landed.
 - `--cooldown` — minimum gap between switches (default 0.5s blink / 1.2s dwell).
 - `--cameras N[,N...]` — V4L2 indices (default `0`).
 - `--overlay` — show a translucent heatmap blob at the predicted gaze

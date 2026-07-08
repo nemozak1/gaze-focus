@@ -30,6 +30,10 @@ MODEL_PATH = pathlib.Path(__file__).resolve().parent.parent / "models" / "face_l
 
 N_FEATURES = 10  # 2x(iris h,v) + 3 head rotation + 3 head translation
 
+# blendshapes exposed for gesture actions (clicks); brow raise and jaw open
+# are deliberate movements that don't disturb the iris features
+GESTURE_SHAPES = ("browInnerUp", "jawOpen")
+
 
 def _ensure_model():
     if MODEL_PATH.exists():
@@ -62,6 +66,7 @@ class FeatureExtractor:
         self._last_ts = 0
         self.last_landmarks = None    # set by read(); used by the preview overlay
         self.last_blink_score = 0.0   # min(eyeBlinkLeft, eyeBlinkRight), 0..1
+        self.last_gestures = dict.fromkeys(GESTURE_SHAPES, 0.0)
 
     def close(self):
         self.cap.release()
@@ -88,8 +93,10 @@ class FeatureExtractor:
             scores = {c.category_name: c.score for c in res.face_blendshapes[0]}
             self.last_blink_score = min(scores.get("eyeBlinkLeft", 0.0),
                                         scores.get("eyeBlinkRight", 0.0))
+            self.last_gestures = {k: scores.get(k, 0.0) for k in GESTURE_SHAPES}
         else:
             self.last_blink_score = 0.0
+            self.last_gestures = dict.fromkeys(GESTURE_SHAPES, 0.0)
         mat = (np.array(res.facial_transformation_matrixes[0])
                if res.facial_transformation_matrixes else np.eye(4))
         h, w = frame.shape[:2]
@@ -158,7 +165,8 @@ class MultiCamera:
         import threading
         self._running = True
         self._lock = threading.Lock()
-        self._latest = [(None, 0.0, 0.0)] * len(self.exts)  # feats, blink, stamp
+        empty = dict.fromkeys(GESTURE_SHAPES, 0.0)
+        self._latest = [(None, 0.0, empty, 0.0)] * len(self.exts)  # feats, blink, gestures, stamp
         self._threads = []
         for i, ext in enumerate(self.exts):
             th = threading.Thread(target=self._capture_loop, args=(i, ext), daemon=True)
@@ -170,15 +178,19 @@ class MultiCamera:
         while self._running:
             feats, _ = ext.read()
             with self._lock:
-                self._latest[i] = (feats, ext.last_blink_score, _time.monotonic())
+                self._latest[i] = (feats, ext.last_blink_score,
+                                   dict(ext.last_gestures), _time.monotonic())
 
     def latest(self):
-        """(feats_list, fused_blink_score, newest_stamp) from background capture."""
+        """(feats_list, blink, gestures, newest_stamp); scores fused as
+        max across cameras — the camera with the frontal view wins."""
         with self._lock:
             snap = list(self._latest)
+        gestures = {k: max(s[2][k] for s in snap) for k in GESTURE_SHAPES}
         return ([s[0] for s in snap],
                 max(s[1] for s in snap),
-                max(s[2] for s in snap))
+                gestures,
+                max(s[3] for s in snap))
 
     def close(self):
         self._running = False
