@@ -1,0 +1,4 @@
+#!/bin/sh
+# Convenience launcher: runs gaze-focus from its venv regardless of cwd.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$DIR/.venv/bin/python" -m gaze_focus "$@"
