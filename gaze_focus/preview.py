@@ -41,7 +41,9 @@ def _camera_pane(ext, feats, frame):
                     f"rot({deg(feats[4]):+3.0f},{deg(feats[5]):+3.0f},"
                     f"{deg(feats[6]):+3.0f})deg "
                     f"pos({feats[7]:+4.1f},{feats[8]:+4.1f},{feats[9]:+5.1f})cm "
-                    f"tongue {ext.last_gestures['tongueOut']:.2f} "
+                    f"smirk {max(ext.last_gestures['mouthLeft'], ext.last_gestures['mouthRight']):.2f} "
+                    f"pkr {ext.last_gestures['mouthPucker']:.2f} "
+                    f"chk {ext.last_gestures['cheekPuff']:.2f} "
                     f"jaw {ext.last_gestures['jawOpen']:.2f}",
                     (10, 44), FONT, 0.5, GREEN, 1)
     else:

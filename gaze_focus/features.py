@@ -30,10 +30,11 @@ MODEL_PATH = pathlib.Path(__file__).resolve().parent.parent / "models" / "face_l
 
 N_FEATURES = 10  # 2x(iris h,v) + 3 head rotation + 3 head translation
 
-# blendshapes exposed for gesture actions (clicks); tongue and jaw are
-# deliberate movements below the nose — brow raise was tried and rejected
-# because lifting the eyelids perturbs the iris-in-eye gaze features
-GESTURE_SHAPES = ("tongueOut", "jawOpen")
+# blendshapes exposed for gesture actions (clicks) — all below the nose;
+# brow raise was tried and rejected because lifting the eyelids perturbs
+# the iris-in-eye gaze features, and tongueOut because MediaPipe's
+# blendshape model doesn't emit that channel at all
+GESTURE_SHAPES = ("mouthLeft", "mouthRight", "mouthPucker", "cheekPuff", "jawOpen")
 
 
 def _ensure_model():

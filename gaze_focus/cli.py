@@ -28,7 +28,11 @@ def main():
                    help="dwell: auto-focus after the gaze rests on a window (default); "
                         "blink: double-blink at a window to focus it")
     r.add_argument("--no-clicks", action="store_true",
-                   help="disable face-gesture clicks (brow-raise = left, mouth-open = right)")
+                   help="disable face-gesture clicks")
+    r.add_argument("--click-gesture", choices=["smirk", "pucker", "cheeks", "jaw", "none"],
+                   default="smirk",
+                   help="left-click gesture (default smirk = shift mouth sideways); "
+                        "mouth-open right-clicks unless taken; test channels in `preview`")
     r.add_argument("--click-key", default="F8", metavar="KEY",
                    help="global hotkey that left-clicks at the gaze point (default F8; 'none' disables)")
     r.add_argument("--dwell", type=float, default=0.4, help="[dwell] seconds gaze must rest on a window (default 0.4)")
@@ -60,7 +64,8 @@ def main():
         from .run import run
         run(cameras=args.cameras, trigger=args.trigger, dwell=args.dwell,
             idle=args.idle, cooldown=args.cooldown, smooth=args.smooth,
-            clicks=not args.no_clicks, click_key=args.click_key,
+            clicks=not args.no_clicks, click_gesture=args.click_gesture,
+            click_key=args.click_key,
             dry_run=args.dry_run, verbose=args.verbose, overlay=args.overlay)
     elif args.cmd == "preview":
         from .preview import preview

@@ -12,8 +12,18 @@ from .paths import CALIB_PATH
 from .x11 import X11, get_monitors
 
 
+# click-gesture options: (score extractor, firing delta above baseline);
+# deltas sit well above measured resting/talking noise per channel
+GESTURE_OPTIONS = {
+    "smirk": (lambda g: max(g["mouthLeft"], g["mouthRight"]), 0.30),
+    "pucker": (lambda g: g["mouthPucker"], 0.45),
+    "cheeks": (lambda g: g["cheekPuff"], 0.25),
+    "jaw": (lambda g: g["jawOpen"], 0.30),
+}
+
+
 def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
-        smooth=0.25, clicks=True, click_key="F8",
+        smooth=0.25, clicks=True, click_gesture="smirk", click_key="F8",
         dry_run=False, verbose=False, overlay=False):
     if cooldown is None:
         cooldown = 0.5 if trigger == "blink" else 1.2
@@ -38,11 +48,14 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
     cur_mon = None
 
     clickers = []
-    if clicks:
-        clickers = [
-            _GestureClick("tongueOut", GestureDetector(delta_on=0.25), 1, "tongue-out"),
-            _GestureClick("jawOpen", GestureDetector(delta_on=0.30), 3, "mouth-open"),
-        ]
+    if clicks and click_gesture != "none":
+        extract, delta = GESTURE_OPTIONS[click_gesture]
+        clickers.append(_GestureClick(extract, GestureDetector(delta_on=delta),
+                                      1, click_gesture))
+        if click_gesture != "jaw":  # mouth-open right click unless taken
+            jaw_extract, jaw_delta = GESTURE_OPTIONS["jaw"]
+            clickers.append(_GestureClick(jaw_extract, GestureDetector(delta_on=jaw_delta),
+                                          3, "mouth-open"))
     click_code = x11.grab_key(click_key) if click_key and click_key != "none" else None
 
     smoothed = None
@@ -57,8 +70,9 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
     how = ("double-blink at a window to focus it" if trigger == "blink"
            else f"auto-focus after {dwell}s gaze dwell + {idle}s keyboard idle")
     extras = []
-    if clicks:
-        extras.append("tongue-out = left click, mouth-open = right click")
+    if clickers:
+        extras.append(f"{click_gesture} = left click"
+                      + (", mouth-open = right click" if len(clickers) > 1 else ""))
     if click_code is not None:
         extras.append(f"{click_key} = left click at gaze")
     extras = ("; " + "; ".join(extras)) if extras else ""
@@ -86,7 +100,7 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
 
             if smoothed is not None:
                 for clicker in clickers:
-                    point = clicker.feed(gestures[clicker.shape], now, smoothed)
+                    point = clicker.feed(clicker.extract(gestures), now, smoothed)
                     if point is not None:
                         _click(x11, point, clicker.button, dry_run, blob, clicker.label)
 
@@ -177,9 +191,9 @@ class _GestureClick:
 
     LOOKBACK_S = 0.25
 
-    def __init__(self, shape, detector, button, label):
+    def __init__(self, extract, detector, button, label):
         from collections import deque
-        self.shape = shape
+        self.extract = extract
         self.detector = detector
         self.button = button
         self.label = label
