@@ -37,10 +37,12 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
     seam_stick = 0.5 * err  # must land this far inside another monitor to switch
     cur_mon = None
 
-    brow = jaw = None
+    clickers = []
     if clicks:
-        brow = GestureDetector(delta_on=0.20)  # raise eyebrows -> left click
-        jaw = GestureDetector(delta_on=0.30)   # open mouth -> right click
+        clickers = [
+            _GestureClick("tongueOut", GestureDetector(delta_on=0.25), 1, "tongue-out"),
+            _GestureClick("jawOpen", GestureDetector(delta_on=0.30), 3, "mouth-open"),
+        ]
     click_code = x11.grab_key(click_key) if click_key and click_key != "none" else None
 
     smoothed = None
@@ -56,7 +58,7 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
            else f"auto-focus after {dwell}s gaze dwell + {idle}s keyboard idle")
     extras = []
     if clicks:
-        extras.append("brow-raise = left click, mouth-open = right click")
+        extras.append("tongue-out = left click, mouth-open = right click")
     if click_code is not None:
         extras.append(f"{click_key} = left click at gaze")
     extras = ("; " + "; ".join(extras)) if extras else ""
@@ -82,11 +84,11 @@ def run(cameras=(0,), trigger="dwell", dwell=0.4, idle=0.6, cooldown=None,
                 candidate_id = None
                 continue
 
-            if brow is not None and smoothed is not None:
-                if brow.update(gestures["browInnerUp"], now):
-                    _click(x11, smoothed, 1, dry_run, blob, "brow-raise")
-                if jaw.update(gestures["jawOpen"], now):
-                    _click(x11, smoothed, 3, dry_run, blob, "mouth-open")
+            if smoothed is not None:
+                for clicker in clickers:
+                    point = clicker.feed(gestures[clicker.shape], now, smoothed)
+                    if point is not None:
+                        _click(x11, point, clicker.button, dry_run, blob, clicker.label)
 
             event = blink.update(blink_score, now)
             if not blink.closed:
@@ -166,6 +168,44 @@ def _switch(x11, win, dry_run, blob=None):
     else:
         x11.activate(win.id)
         print(f"focused: {win.title[:70]}")
+
+
+class _GestureClick:
+    """Pairs a gesture with a click, latching a PRE-gesture gaze point —
+    the frame that first shows the gesture already shows the perturbed
+    face, so the click target comes from ~250ms before onset."""
+
+    LOOKBACK_S = 0.25
+
+    def __init__(self, shape, detector, button, label):
+        from collections import deque
+        self.shape = shape
+        self.detector = detector
+        self.button = button
+        self.label = label
+        self._latch = None
+        self._history = deque(maxlen=32)  # (t, gaze point)
+
+    def feed(self, score, now, smoothed):
+        """Returns the point to click, or None."""
+        self._history.append((now, np.array(smoothed, copy=True)))
+        was_active = self.detector.active
+        fired = self.detector.update(score, now)
+        if self.detector.active and not was_active:
+            self._latch = self._pre_gesture_point(now)
+        if fired:
+            point = self._latch if self._latch is not None else smoothed
+            self._latch = None
+            return point
+        if not self.detector.active:
+            self._latch = None
+        return None
+
+    def _pre_gesture_point(self, now):
+        for t, p in reversed(self._history):
+            if now - t >= self.LOOKBACK_S:
+                return p
+        return self._history[0][1]
 
 
 def _click(x11, point, button, dry_run, blob, source):

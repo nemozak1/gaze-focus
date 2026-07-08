@@ -69,13 +69,18 @@ focus moves in the pause after you stop typing).
 
 Three ways to click at the gaze point, all active by default during `run`:
 
-- **Raise your eyebrows** (hold ~150ms, release) — left click
-- **Open your mouth** (hold ~150ms, release) — right click
+- **Stick your tongue out** (hold ~150ms, pull it back in) — left click
+- **Open your mouth** (hold ~150ms, close) — right click
 - **Press F8** — left click (`--click-key KEY` to rebind, `none` to disable)
 
+Gestures live below the nose on purpose: brow-raising was tried and
+rejected because lifting the eyelids perturbs the gaze features. The
+click point is latched at gesture ONSET, so even if the gesture wiggles
+tracking, the click lands where you were looking before your face moved.
 Face gestures use adaptive baselines (like blink detection) with a
 hold-then-release requirement and a cooldown, so ordinary expressions
-don't fire them. `--no-clicks` disables the face gestures. Honest
+don't fire them. `--no-clicks` disables the face gestures. Check your
+tongue registers in `preview` (it shows live tongue/jaw scores). Honest
 accuracy note: clicks land wherever the gaze estimate is, which is good
 to roughly the error margin (~250px) — great for big buttons, videos,
 window chrome; not for small links. The pointer warps to the click

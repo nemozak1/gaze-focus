@@ -30,9 +30,10 @@ MODEL_PATH = pathlib.Path(__file__).resolve().parent.parent / "models" / "face_l
 
 N_FEATURES = 10  # 2x(iris h,v) + 3 head rotation + 3 head translation
 
-# blendshapes exposed for gesture actions (clicks); brow raise and jaw open
-# are deliberate movements that don't disturb the iris features
-GESTURE_SHAPES = ("browInnerUp", "jawOpen")
+# blendshapes exposed for gesture actions (clicks); tongue and jaw are
+# deliberate movements below the nose — brow raise was tried and rejected
+# because lifting the eyelids perturbs the iris-in-eye gaze features
+GESTURE_SHAPES = ("tongueOut", "jawOpen")
 
 
 def _ensure_model():
